@@ -50,9 +50,9 @@ EdgeAI_SmallOpen_LLMs/
 ### Fully reproducible run helper
 - Use the helper script to automate cold-cache preparation and run a benchmark in one step:
    ```sh
-   ./scripts/full_repro_benchmark.sh --model llama3.2:1b --runs 3 --output llama_runs.log
+   python scripts/full_repro_benchmark.py --model llama3.2:1b --runs 3 --output llama_runs.log
    ```
-   This stops Ollama, clears cached models/blobs, enforces single-thread inference, reminds you to close heavy background apps, and then calls `benchmark_runner.py`. It works on macOS and Raspberry Pi OS (Debian-based) provided Ollama and Python dependencies are installed.
+   This stops Ollama, clears cached models/blobs, enforces single-thread inference, reminds you to close heavy background apps, and then calls `benchmark_runner.py`. Use `--no-cache-clear` if you intentionally want to reuse cached weights (less reproducible). It works on macOS and Raspberry Pi OS (Debian-based) provided Ollama and Python dependencies are installed.
 
 Each `run_XX.json` embeds safe host metadata (platform, release, machine type, processor ID string, Python version, Ollama version, CPU/RAM capacity) so reviewers can cross-check results across different edge devices without exposing sensitive information.
 
