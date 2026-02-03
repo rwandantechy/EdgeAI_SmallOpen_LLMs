@@ -9,6 +9,7 @@ import platform
 import psutil
 import argparse
 import threading
+import shutil
 from typing import Tuple
 
 # Constants
@@ -40,6 +41,18 @@ def prepare_output_dir(model_name: str) -> Tuple[str, str]:
     timestamp_dir = os.path.join(model_root, timestamp)
     os.makedirs(timestamp_dir, exist_ok=True)
     return timestamp_dir, timestamp
+
+
+def purge_results_dir(model_name: str) -> None:
+    model_root = os.path.join(RESULTS_DIR, model_name)
+    if os.path.isdir(model_root):
+        try:
+            print(f"Removing existing results at {model_root}...")
+            shutil.rmtree(model_root)
+        except Exception as exc:
+            print(f"Warning: could not remove {model_root}: {exc}")
+    else:
+        print(f"No previous results found at {model_root}.")
 
 def clean_ollama_blobs():
     subprocess.run(["ollama", "rm", "--all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -208,10 +221,14 @@ def main():
     parser = argparse.ArgumentParser(description="Benchmark LLMs on edge devices.")
     parser.add_argument("--model", type=str, default=None, help="Model to run (default: all)")
     parser.add_argument("--runs", type=int, default=1, help="Number of repeated runs")
+    parser.add_argument("--purge-results", action="store_true", help="Remove existing results/<model> directory before running")
     args = parser.parse_args()
 
     questions = load_questions()["questions"]
     models = [args.model] if args.model else OLLAMA_MODELS
+    if args.purge_results:
+        for model in models:
+            purge_results_dir(model)
     for model in models:
         timestamp_dir, timestamp = prepare_output_dir(model)
         for run_idx in range(1, args.runs + 1):

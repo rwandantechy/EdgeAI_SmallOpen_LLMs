@@ -57,6 +57,19 @@ def clear_cache() -> None:
                         print(f"  Warning: could not remove {child}: {exc}")
 
 
+def purge_previous_results(model: str) -> None:
+    """Optionally remove prior benchmark outputs for the selected model."""
+    target_dir = REPO_ROOT / "results" / model
+    if target_dir.exists():
+        try:
+            print(f"Removing existing results at {target_dir}...")
+            shutil.rmtree(target_dir)
+        except Exception as exc:
+            print(f"  Warning: could not purge {target_dir}: {exc}")
+    else:
+        print(f"No previous results found at {target_dir}.")
+
+
 def show_user_processes() -> None:
     """Display user processes minus obvious system daemons to help manual cleanup."""
     try:
@@ -130,6 +143,7 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=1, help="Number of repeated runs (default: 1)")
     parser.add_argument("--output", type=Path, default=None, help="Optional log file to capture runner output")
     parser.add_argument("--no-cache-clear", action="store_true", help="Skip clearing Ollama caches (not reproducible)")
+    parser.add_argument("--purge-results", action="store_true", help="Remove existing results/<model> directory before running")
     args = parser.parse_args()
 
     if args.runs < 1:
@@ -147,6 +161,8 @@ def main() -> None:
     print(f"OLLAMA_NUM_PARALLEL set to {os.environ['OLLAMA_NUM_PARALLEL']}")
 
     stop_ollama()
+    if args.purge_results:
+        purge_previous_results(args.model)
     if not args.no_cache_clear:
         clear_cache()
     else:
