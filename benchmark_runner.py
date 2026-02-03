@@ -11,6 +11,7 @@ import argparse
 import threading
 import shutil
 import re
+import sys
 from typing import Tuple
 
 # Constants
@@ -81,6 +82,49 @@ def get_ollama_version() -> str:
         return "unavailable"
 
 
+def detect_processor_label() -> str:
+    brand = ""
+    try:
+        if sys.platform == "darwin":
+            proc = subprocess.run(
+                ["/usr/sbin/sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+                check=False,
+            )
+            brand = proc.stdout.strip()
+        elif sys.platform.startswith("linux"):
+            with open("/proc/cpuinfo", "r", encoding="utf-8", errors="ignore") as cpuinfo:
+                for line in cpuinfo:
+                    if "model name" in line or "Hardware" in line:
+                        brand = line.split(":", 1)[1].strip()
+                        if brand:
+                            break
+        elif sys.platform.startswith("win"):
+            brand = platform.processor()
+    except Exception:
+        brand = ""
+    if not brand:
+        brand = platform.processor() or ""
+    if not brand:
+        brand = platform.uname().processor or ""
+    if not brand:
+        brand = platform.machine() or "unknown"
+
+    label = brand.strip()
+    intel_match = re.search(r"Intel\S* Core\S* i[3579]\w*", label, re.IGNORECASE)
+    if intel_match:
+        label = intel_match.group(0).replace("(R)", "").replace("(TM)", "").strip()
+    apple_match = re.search(r"Apple\s+M\d+\w*", label)
+    if apple_match:
+        label = apple_match.group(0)
+    if "Apple" in label and "M" not in label:
+        label = "Apple Silicon"
+    label = label.replace("  ", " ")
+    return label
+
+
 def get_system_metadata():
     cpu_freq = psutil.cpu_freq()
     release = platform.release() or None
@@ -105,11 +149,7 @@ def get_system_metadata():
             return trimmed
         return f"{trimmed[:keep]}…"
 
-    raw_processor = platform.processor()
-    if not raw_processor or not raw_processor.strip():
-        raw_processor = platform.uname().processor
-    if not raw_processor or not raw_processor.strip():
-        raw_processor = platform.machine()
+    raw_processor = detect_processor_label()
 
     return {
         "platform": platform.system(),

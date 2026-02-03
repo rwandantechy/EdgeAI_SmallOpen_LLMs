@@ -7,7 +7,7 @@
     "platform_release": "25",
     "platform_version": "Darwin Kernel Ve…",
     "machine": "x86_64",
-    "processor": "x86_64",
+    "processor": "Intel Core i7",
     "python_version": "3.14",
     "ollama_version": "0.15.4",
     "cpu_count": 12,
