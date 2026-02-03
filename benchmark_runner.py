@@ -54,6 +54,41 @@ def get_system_metadata():
         }
     }
 
+
+def score_response(q, response):
+    # Logical Reasoning & Deductive Reasoning: exact match (case-insensitive, strip)
+    if q["category"] in ["Logical Reasoning", "Deductive Reasoning"]:
+        corrects = [a.lower().strip() for a in q.get("answer", [])]
+        if response.lower().strip() in corrects:
+            return q["scoring"]["correct"], "correct"
+        else:
+            return q["scoring"]["incorrect"], "incorrect"
+    # Knowledge Comparison: must contain a key phrase
+    elif q["category"] == "Knowledge Comparison":
+        for ans in q.get("acceptable_answers", []):
+            for phrase in ans.lower().split("/"):
+                if phrase.strip() in response.lower():
+                    return q["scoring"]["correct"], "correct"
+        return q["scoring"]["incorrect"], "incorrect"
+    # Summarization: check for required ideas
+    elif q["category"].startswith("Text Understanding"):
+        ideas = q.get("required_ideas", [])
+        found = 0
+        resp = response.lower()
+        if "solar" in resp and "panel" in resp and "electric" in resp:
+            found += 1
+        if "renewable" in resp or "reduce" in resp or "pollution" in resp:
+            found += 1
+        if "weather" in resp or "cost" in resp:
+            found += 1
+        if found == 3:
+            return q["scoring"]["all_key_ideas"], "all_key_ideas"
+        elif found >= 2:
+            return q["scoring"]["partial"], "partial"
+        else:
+            return q["scoring"]["incorrect"], "incorrect"
+    return 0, "ungraded"
+
 def run_model(model: str, questions: list, output_path: str):
     # Clean blobs and restart Ollama for determinism
     clean_ollama_blobs()
@@ -65,7 +100,9 @@ def run_model(model: str, questions: list, output_path: str):
         "timestamp": datetime.now().isoformat(),
         "system_metadata": get_system_metadata(),
         "inference_params": INFERENCE_PARAMS,
-        "responses": []
+        "responses": [],
+        "scores": [],
+        "total_score": 0
     }
 
     for q in questions:
@@ -88,11 +125,16 @@ def run_model(model: str, questions: list, output_path: str):
             response = proc.stdout.decode(errors="replace").strip()
         except Exception as e:
             response = f"ERROR: {e}"
+        score, reason = score_response(q, response)
         results["responses"].append({
             "category": q["category"],
             "question": prompt,
-            "response": response
+            "response": response,
+            "score": score,
+            "score_reason": reason
         })
+        results["scores"].append(score)
+    results["total_score"] = sum(results["scores"])
 
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
