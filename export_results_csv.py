@@ -7,12 +7,10 @@ CSV_OUTPUT = "benchmark_results.csv"
 
 
 def collect_json_files(results_dir):
-    for model_dir in os.listdir(results_dir):
-        model_path = os.path.join(results_dir, model_dir)
-        if os.path.isdir(model_path):
-            for fname in os.listdir(model_path):
-                if fname.endswith(".json"):
-                    yield os.path.join(model_path, fname)
+    for root, _, files in os.walk(results_dir):
+        for fname in files:
+            if fname.endswith(".json"):
+                yield os.path.join(root, fname)
 
 
 def flatten_result(json_path):

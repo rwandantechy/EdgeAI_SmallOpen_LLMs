@@ -19,6 +19,10 @@ EdgeAI_SmallOpen_LLMs/
 ├── plot_benchmark_scores.py             # Visualize model scores
 ├── requirements.txt                     # Python dependencies
 ├── results/                             # Model outputs and plots
+│   └── <model_name>/
+│       └── <timestamp>/                 # One benchmark session
+│           ├── run_01.json              # Individual run (status, scores, resources)
+│           └── run_02.json              # Additional runs share same timestamp
 └── README.md                            # Project documentation
 ```
 
@@ -33,6 +37,7 @@ EdgeAI_SmallOpen_LLMs/
    ```
    - Use `--model llama3.2:1b` to benchmark a single model
    - Use `--runs 5` to repeat the same model run multiple times (resource usage tracked per run)
+   - Each run is saved under `results/<model>/<timestamp>/run_<index>.json` with a `run_status` flag set to `completed`
 3. **Export results to CSV**
    ```sh
    python export_results_csv.py

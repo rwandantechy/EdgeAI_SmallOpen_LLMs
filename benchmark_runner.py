@@ -9,6 +9,7 @@ import platform
 import psutil
 import argparse
 import threading
+from typing import Tuple
 
 # Constants
 BENCHMARK_DATA = "benchmark_data/questions.json"
@@ -31,11 +32,13 @@ def load_questions():
         return json.load(f)
 
 
-def prepare_output_dir(model_name: str) -> str:
+def prepare_output_dir(model_name: str) -> Tuple[str, str]:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_dir = os.path.join(RESULTS_DIR, model_name)
-    os.makedirs(out_dir, exist_ok=True)
-    return out_dir, timestamp
+    model_root = os.path.join(RESULTS_DIR, model_name)
+    os.makedirs(model_root, exist_ok=True)
+    timestamp_dir = os.path.join(model_root, timestamp)
+    os.makedirs(timestamp_dir, exist_ok=True)
+    return timestamp_dir, timestamp
 
 def clean_ollama_blobs():
     subprocess.run(["ollama", "rm", "--all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -109,7 +112,7 @@ def monitor_resources(proc, stats):
     stats["peak_ram_mb"] = peak_mem
     stats["avg_cpu_percent"] = sum(cpu_samples) / len(cpu_samples) if cpu_samples else 0
 
-def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx: int = 1):
+def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, run_idx: int = 1):
     clean_ollama_blobs()
     restart_ollama()
     os.environ["OLLAMA_NUM_PARALLEL"] = "1"
@@ -123,7 +126,8 @@ def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx
         "responses": [],
         "scores": [],
         "total_score": 0,
-        "resource_usage": {}
+        "resource_usage": {},
+        "run_status": "in_progress"
     }
 
     start_time = time.time()
@@ -175,8 +179,9 @@ def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx
         "peak_ram_mb": round(run_peak_ram, 2) if run_peak_ram else None,
         "avg_cpu_percent": round(run_avg_cpu, 2)
     })
+    results["run_status"] = "completed"
 
-    out_path = os.path.join(out_dir, f"{timestamp}_run{run_idx}.json")
+    out_path = os.path.join(timestamp_dir, f"run_{run_idx:02d}.json")
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"Saved results for {model} run {run_idx} to {out_path}")
@@ -191,9 +196,9 @@ def main():
     questions = load_questions()["questions"]
     models = [args.model] if args.model else OLLAMA_MODELS
     for model in models:
-        out_dir, timestamp = prepare_output_dir(model)
+        timestamp_dir, timestamp = prepare_output_dir(model)
         for run_idx in range(1, args.runs + 1):
-            run_model(model, questions, out_dir, timestamp, run_idx)
+            run_model(model, questions, timestamp_dir, timestamp, run_idx)
 
 if __name__ == "__main__":
     main()

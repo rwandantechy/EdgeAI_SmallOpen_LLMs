@@ -8,17 +8,15 @@ IMG_OUTPUT = os.path.join(RESULTS_DIR, "benchmark_scores.png")
 
 def collect_total_scores(results_dir):
     scores = {}
-    for model_dir in os.listdir(results_dir):
-        model_path = os.path.join(results_dir, model_dir)
-        if os.path.isdir(model_path):
-            for fname in os.listdir(model_path):
-                if fname.endswith(".json"):
-                    with open(os.path.join(model_path, fname), "r") as f:
-                        data = json.load(f)
-                        model = data.get("model")
-                        score = data.get("total_score")
-                        if model and score is not None:
-                            scores.setdefault(model, []).append(score)
+    for root, _, files in os.walk(results_dir):
+        for fname in files:
+            if fname.endswith(".json"):
+                with open(os.path.join(root, fname), "r") as f:
+                    data = json.load(f)
+                model = data.get("model")
+                score = data.get("total_score")
+                if model and score is not None:
+                    scores.setdefault(model, []).append(score)
     # Use average if multiple runs per model
     avg_scores = {m: sum(v)/len(v) for m, v in scores.items()}
     return avg_scores
