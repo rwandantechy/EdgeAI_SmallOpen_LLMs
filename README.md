@@ -35,9 +35,11 @@ EdgeAI_SmallOpen_LLMs/
 ## Quick start
 1. **Install the tools**
    ```sh
+   python3 -m venv .venv        # create once
+   source .venv/bin/activate    # activate the workspace venv
    pip install -r requirements.txt
    ```
-   Installs everything the scripts need (psutil, matplotlib, etc.).
+   Installs everything the scripts need (psutil, matplotlib, etc.) inside `.venv`. The helper script automatically uses the active environment; set `PYTHON_BIN=$PWD/.venv/bin/python` if you ever want to stay outside the venv.
 2. **Grab at least one model**
    ```sh
    ollama pull llama3.2:1b
