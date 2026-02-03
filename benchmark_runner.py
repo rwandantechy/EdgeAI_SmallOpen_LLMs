@@ -182,9 +182,12 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
             stats = {}
             monitor_thread = threading.Thread(target=monitor_resources, args=(proc, stats))
             monitor_thread.start()
-            out, _ = proc.communicate(input=prompt.encode(), timeout=120)
+            out, err = proc.communicate(input=prompt.encode(), timeout=180)
             monitor_thread.join()
             response = out.decode(errors="replace").strip()
+            if proc.returncode != 0:
+                error_text = err.decode(errors="replace").strip() or "ollama run exited with a non-zero status"
+                response = f"ERROR: {error_text}"
         except Exception as e:
             response = f"ERROR: {e}"
             stats = {"peak_ram_mb": None, "avg_cpu_percent": None}
@@ -193,6 +196,9 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
         if stats.get("avg_cpu_percent") is not None:
             run_cpu_samples.append(stats["avg_cpu_percent"])
         score, reason = score_response(q, response)
+        if response.startswith("ERROR:"):
+            reason = "error"
+            score = 0
         results["responses"].append({
             "category": q["category"],
             "question": prompt,
@@ -209,7 +215,10 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
         "peak_ram_mb": round(run_peak_ram, 2) if run_peak_ram else None,
         "avg_cpu_percent": round(run_avg_cpu, 2)
     })
-    results["run_status"] = "completed"
+    if any(resp["response"].startswith("ERROR:") for resp in results["responses"]):
+        results["run_status"] = "error"
+    else:
+        results["run_status"] = "completed"
 
     out_path = os.path.join(timestamp_dir, f"run_{run_idx:02d}.json")
     with open(out_path, "w") as f:
