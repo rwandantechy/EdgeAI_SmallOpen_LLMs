@@ -127,6 +127,8 @@ def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx
     }
 
     start_time = time.time()
+    run_peak_ram = 0.0
+    run_cpu_samples = []
     for q in questions:
         prompt = q["question"]
         ollama_cmd = [
@@ -152,6 +154,10 @@ def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx
         except Exception as e:
             response = f"ERROR: {e}"
             stats = {"peak_ram_mb": None, "avg_cpu_percent": None}
+        if stats.get("peak_ram_mb"):
+            run_peak_ram = max(run_peak_ram, stats["peak_ram_mb"])
+        if stats.get("avg_cpu_percent") is not None:
+            run_cpu_samples.append(stats["avg_cpu_percent"])
         score, reason = score_response(q, response)
         results["responses"].append({
             "category": q["category"],
@@ -163,7 +169,12 @@ def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx
         })
         results["scores"].append(score)
     results["total_score"] = sum(results["scores"])
-    results["resource_usage"]["wall_time_sec"] = round(time.time() - start_time, 2)
+    run_avg_cpu = sum(run_cpu_samples) / len(run_cpu_samples) if run_cpu_samples else 0
+    results["resource_usage"].update({
+        "wall_time_sec": round(time.time() - start_time, 2),
+        "peak_ram_mb": round(run_peak_ram, 2) if run_peak_ram else None,
+        "avg_cpu_percent": round(run_avg_cpu, 2)
+    })
 
     out_path = os.path.join(out_dir, f"{timestamp}_run{run_idx}.json")
     with open(out_path, "w") as f:

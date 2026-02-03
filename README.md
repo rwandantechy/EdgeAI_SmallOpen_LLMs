@@ -31,6 +31,8 @@ EdgeAI_SmallOpen_LLMs/
    ```sh
    python benchmark_runner.py
    ```
+   - Use `--model llama3.2:1b` to benchmark a single model
+   - Use `--runs 5` to repeat the same model run multiple times (resource usage tracked per run)
 3. **Export results to CSV**
    ```sh
    python export_results_csv.py

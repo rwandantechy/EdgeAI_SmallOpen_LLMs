@@ -23,12 +23,18 @@ def flatten_result(json_path):
         row = {
             "model": data.get("model"),
             "timestamp": data.get("timestamp"),
+            "run_index": data.get("run_index"),
             "category": resp.get("category"),
             "question": resp.get("question"),
             "response": resp.get("response"),
             "score": resp.get("score"),
             "score_reason": resp.get("score_reason"),
             "total_score": data.get("total_score"),
+            "run_wall_time_sec": data.get("resource_usage", {}).get("wall_time_sec"),
+            "run_peak_ram_mb": data.get("resource_usage", {}).get("peak_ram_mb"),
+            "run_avg_cpu_percent": data.get("resource_usage", {}).get("avg_cpu_percent"),
+            "response_peak_ram_mb": resp.get("resource_usage", {}).get("peak_ram_mb"),
+            "response_avg_cpu_percent": resp.get("resource_usage", {}).get("avg_cpu_percent")
         }
         rows.append(row)
     return rows
