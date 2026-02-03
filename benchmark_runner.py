@@ -106,17 +106,37 @@ def get_system_metadata():
     }
 
 
-def build_ollama_options(params):
-    options = []
-    option_map = {
-        "temperature": f"temperature={params['temperature']}",
-        "top_p": f"top_p={params['top_p']}",
-        "seed": f"seed={params['seed']}",
-        "num_predict": f"num_predict={params['max_tokens']}"
-    }
-    for value in option_map.values():
-        options.extend(["--options", str(value)])
-    return options
+def parse_version_tuple(version: str) -> Tuple[int, int, int] | None:
+    if not version or version in {"unknown", "unavailable"}:
+        return None
+    try:
+        parts = version.split(".")
+        numbers = []
+        for part in parts[:3]:
+            digits = ''.join(ch for ch in part if ch.isdigit())
+            if digits:
+                numbers.append(int(digits))
+        while len(numbers) < 3:
+            numbers.append(0)
+        return tuple(numbers[:3])
+    except Exception:
+        return None
+
+
+def cli_supports_options(version: Tuple[int, int, int] | None) -> bool:
+    if version is None:
+        return True
+    return version >= (0, 16, 0)
+
+
+def build_cli_options(params: dict) -> list[str]:
+    return [
+        "--temperature", str(params["temperature"]),
+        "--top-p", str(params["top_p"]),
+        "--seed", str(params["seed"]),
+        "--num-predict", str(params["max_tokens"]),
+        "--threads", str(params["threads"])
+    ]
 
 
 def score_response(q, response):
@@ -190,29 +210,44 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
     start_time = time.time()
     run_peak_ram = 0.0
     run_cpu_samples = []
+    version_tuple = parse_version_tuple(results["system_metadata"].get("ollama_version"))
+    use_cli_options = cli_supports_options(version_tuple)
+    results.setdefault("metadata", {})["cli_options_supported"] = use_cli_options
+
     for q in questions:
         prompt = q["question"]
-        ollama_cmd = ["ollama", "run", model]
-        ollama_cmd.extend(build_ollama_options(INFERENCE_PARAMS))
-        try:
-            proc = subprocess.Popen(
-                ollama_cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stats = {}
-            monitor_thread = threading.Thread(target=monitor_resources, args=(proc, stats))
-            monitor_thread.start()
-            out, err = proc.communicate(input=prompt.encode(), timeout=180)
-            monitor_thread.join()
-            response = out.decode(errors="replace").strip()
-            if proc.returncode != 0:
-                error_text = err.decode(errors="replace").strip() or "ollama run exited with a non-zero status"
-                response = f"ERROR: {error_text}"
-        except Exception as e:
-            response = f"ERROR: {e}"
-            stats = {"peak_ram_mb": None, "avg_cpu_percent": None}
+        attempt = 0
+        while True:
+            attempt += 1
+            attempt_used_cli = use_cli_options and attempt == 1
+            ollama_cmd = ["ollama", "run", model]
+            if attempt_used_cli:
+                ollama_cmd.extend(build_cli_options(INFERENCE_PARAMS))
+            try:
+                proc = subprocess.Popen(
+                    ollama_cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                stats = {}
+                monitor_thread = threading.Thread(target=monitor_resources, args=(proc, stats))
+                monitor_thread.start()
+                out, err = proc.communicate(input=prompt.encode(), timeout=180)
+                monitor_thread.join()
+                response = out.decode(errors="replace").strip()
+                if proc.returncode != 0:
+                    error_text = err.decode(errors="replace").strip() or response or "ollama run exited with a non-zero status"
+                    if "unknown flag" in error_text.lower() and attempt_used_cli:
+                        use_cli_options = False
+                        results["metadata"]["cli_options_supported"] = False
+                        if attempt < 2:
+                            continue
+                    response = f"ERROR: {error_text}"
+            except Exception as e:
+                response = f"ERROR: {e}"
+                stats = {"peak_ram_mb": None, "avg_cpu_percent": None}
+            break
         if stats.get("peak_ram_mb"):
             run_peak_ram = max(run_peak_ram, stats["peak_ram_mb"])
         if stats.get("avg_cpu_percent") is not None:
