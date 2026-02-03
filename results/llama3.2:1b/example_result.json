@@ -5,9 +5,9 @@
   "system_metadata": {
     "platform": "Darwin",
     "platform_release": "25",
-    "platform_version": null,
+    "platform_version": "Darwin Kernel Ve…",
     "machine": "arm64",
-    "processor": null,
+    "processor": "arm64",
     "python_version": "3.10",
     "ollama_version": "0.1.28",
     "cpu_count": 8,

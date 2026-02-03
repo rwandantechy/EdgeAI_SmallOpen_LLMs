@@ -87,18 +87,42 @@ def get_system_metadata():
     release_major = release.split(".")[0] if release and "." in release else release
     python_version = platform.python_version() or None
     python_major_minor = ".".join(python_version.split(".")[:2]) if python_version else None
+
+    def sanitize(value, default="unknown"):
+        if value is None:
+            return default
+        if isinstance(value, str) and not value.strip():
+            return default
+        return value
+
+    def partial_value(raw: str, keep: int = 12) -> str:
+        if not raw:
+            return ""
+        trimmed = raw.strip()
+        if not trimmed:
+            return ""
+        if len(trimmed) <= keep:
+            return trimmed
+        return f"{trimmed[:keep]}…"
+
+    raw_processor = platform.processor()
+    if not raw_processor or not raw_processor.strip():
+        raw_processor = platform.uname().processor
+    if not raw_processor or not raw_processor.strip():
+        raw_processor = platform.machine()
+
     return {
         "platform": platform.system(),
-        "platform_release": release_major,
-        "platform_version": None,
-        "machine": platform.machine() or None,
-        "processor": None,
-        "python_version": python_major_minor,
+        "platform_release": sanitize(release_major),
+        "platform_version": sanitize(partial_value(platform.version(), 16)),
+        "machine": sanitize(platform.machine()),
+        "processor": sanitize(partial_value(raw_processor, 16)),
+        "python_version": sanitize(python_major_minor),
         "ollama_version": get_ollama_version(),
         "cpu_count": psutil.cpu_count(logical=True),
         "cpu_physical": psutil.cpu_count(logical=False),
         "ram_gb": round(psutil.virtual_memory().total / (1024 ** 3), 2),
-        "cpu_freq_mhz": cpu_freq.current if cpu_freq else None,
+        "cpu_freq_mhz": cpu_freq.current if cpu_freq else 0,
         "cpu_percent": psutil.cpu_percent(interval=1),
         "threading_info": {
             "num_threads": len(psutil.Process().threads())
