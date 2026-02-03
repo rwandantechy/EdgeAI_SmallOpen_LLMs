@@ -7,7 +7,6 @@ import argparse
 import os
 import subprocess
 import sys
-from getpass import getuser
 from pathlib import Path
 from typing import Iterable, Optional
 import shutil
@@ -68,33 +67,6 @@ def purge_previous_results(model: str) -> None:
             print(f"  Warning: could not purge {target_dir}: {exc}")
     else:
         print(f"No previous results found at {target_dir}.")
-
-
-def show_user_processes() -> None:
-    """Display user processes minus obvious system daemons to help manual cleanup."""
-    try:
-        result = run_command(
-            [
-                "ps",
-                "-u",
-                getuser(),
-                "-o",
-                "pid,%cpu,%mem,comm",
-            ],
-            capture_output=True,
-        )
-        lines = result.stdout.strip().splitlines()
-        filtered = [lines[0]] if lines else []
-        for line in lines[1:]:
-            command = line.split(maxsplit=3)[-1] if line.split(maxsplit=3) else ""
-            if not (command.startswith("/System/Library") or command.startswith("/usr/libexec") or command.startswith("/usr/sbin")):
-                filtered.append(line)
-        if filtered:
-            print("Active user processes (non-system) for review:")
-            for line in filtered:
-                print(line)
-    except Exception as exc:  # pragma: no cover - purely informative
-        print(f"Could not list processes: {exc}")
 
 
 def ensure_python_interpreter(env_value: Optional[str]) -> str:
@@ -163,9 +135,6 @@ def main() -> None:
         clear_cache()
     else:
         print("Skipping cache clear as requested; results may be non-reproducible.")
-
-    show_user_processes()
-    print("Reminder: manually close heavy background apps (Docker, browsers, etc.) for cleaner measurements.\n")
 
     run_benchmark(args.model, python_bin, args.output)
     print(f"Benchmark completed for {args.model}. Results stored under results/{args.model}/<timestamp>/")

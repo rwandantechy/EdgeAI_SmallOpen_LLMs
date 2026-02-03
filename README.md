@@ -58,7 +58,7 @@ EdgeAI_SmallOpen_LLMs/
   ```sh
    python scripts/full_repro_benchmark.py --model llama3.2:1b --output run.log
   ```
-  Stops Ollama, clears caches, enforces single-thread inference, and writes outputs to the same results folder.
+   Stops Ollama, clears caches, enforces single-thread inference, and writes outputs to the same results folder.
 - Fresh slate before a rerun:
   ```sh
   python benchmark_runner.py --model llama3.2:1b --purge-results
@@ -70,7 +70,7 @@ EdgeAI_SmallOpen_LLMs/
    ```sh
    python scripts/full_repro_benchmark.py --model llama3.2:1b --output llama_runs.log
    ```
-   The script stops Ollama, clears cached weights, enforces single-thread inference, and nudges you to close heavy apps before running `benchmark_runner.py`. Prefer to keep the cache? Pass `--no-cache-clear`. Want a clean slate for that model’s outputs? Add `--purge-results` to clear `results/<model>` before the run, or delete the folder manually afterward. Re-run the helper whenever you need another pass. The helper works the same on macOS and Raspberry Pi OS as long as Ollama and Python are installed.
+   The script stops Ollama, clears cached weights, enforces single-thread inference, and then runs `benchmark_runner.py` for you. Prefer to keep the cache? Pass `--no-cache-clear`. Want a clean slate for that model’s outputs? Add `--purge-results` to clear `results/<model>` before the run, or delete the folder manually afterward. Re-run the helper whenever you need another pass. The helper works the same on macOS and Raspberry Pi OS as long as Ollama and Python are installed.
    Each invocation writes outputs to `results/<model>/<timestamp>/run_<index>.json` and streams a copy of stdout to the optional log file so you can revisit the transcript later.
 
 Every `run_<index>.json` includes a short snapshot of the host (OS, machine type, processor string, Python version, Ollama version, CPU and RAM capacity) so collaborators can see where the run happened without revealing anything sensitive.
