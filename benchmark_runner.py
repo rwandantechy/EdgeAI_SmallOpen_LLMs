@@ -220,7 +220,6 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
 def main():
     parser = argparse.ArgumentParser(description="Benchmark LLMs on edge devices.")
     parser.add_argument("--model", type=str, default=None, help="Model to run (default: all)")
-    parser.add_argument("--runs", type=int, default=1, help="Number of repeated runs")
     parser.add_argument("--purge-results", action="store_true", help="Remove existing results/<model> directory before running")
     args = parser.parse_args()
 
@@ -231,8 +230,7 @@ def main():
             purge_results_dir(model)
     for model in models:
         timestamp_dir, timestamp = prepare_output_dir(model)
-        for run_idx in range(1, args.runs + 1):
-            run_model(model, questions, timestamp_dir, timestamp, run_idx)
+        run_model(model, questions, timestamp_dir, timestamp, 1)
 
 if __name__ == "__main__":
     main()

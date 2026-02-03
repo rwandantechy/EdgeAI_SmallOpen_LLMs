@@ -108,10 +108,10 @@ def ensure_python_interpreter(env_value: Optional[str]) -> str:
     raise RuntimeError("python3 or python executable not found on PATH")
 
 
-def run_benchmark(model: str, runs: int, python_bin: str, output_file: Optional[Path]) -> None:
+def run_benchmark(model: str, python_bin: str, output_file: Optional[Path]) -> None:
     """Invoke benchmark_runner with optional tee to a log file."""
-    cmd = [python_bin, "benchmark_runner.py", "--model", model, "--runs", str(runs)]
-    print(f"Running benchmark_runner with model={model} runs={runs}")
+    cmd = [python_bin, "benchmark_runner.py", "--model", model]
+    print(f"Running benchmark_runner with model={model}")
     process = subprocess.Popen(
         cmd,
         cwd=REPO_ROOT,
@@ -140,14 +140,10 @@ def run_benchmark(model: str, runs: int, python_bin: str, output_file: Optional[
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare and run reproducible LLM benchmarks")
     parser.add_argument("--model", required=True, help="Ollama model identifier (e.g., llama3.2:1b)")
-    parser.add_argument("--runs", type=int, default=1, help="Number of repeated runs (default: 1)")
     parser.add_argument("--output", type=Path, default=None, help="Optional log file to capture runner output")
     parser.add_argument("--no-cache-clear", action="store_true", help="Skip clearing Ollama caches (not reproducible)")
     parser.add_argument("--purge-results", action="store_true", help="Remove existing results/<model> directory before running")
     args = parser.parse_args()
-
-    if args.runs < 1:
-        parser.error("--runs must be at least 1")
 
     python_bin = os.environ.get("PYTHON_BIN")
     try:
@@ -171,7 +167,7 @@ def main() -> None:
     show_user_processes()
     print("Reminder: manually close heavy background apps (Docker, browsers, etc.) for cleaner measurements.\n")
 
-    run_benchmark(args.model, args.runs, python_bin, args.output)
+    run_benchmark(args.model, python_bin, args.output)
     print(f"Benchmark completed for {args.model}. Results stored under results/{args.model}/<timestamp>/")
 
 
