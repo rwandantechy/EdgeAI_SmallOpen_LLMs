@@ -24,7 +24,8 @@ INFERENCE_PARAMS = {
     "temperature": 0,
     "top_p": 1.0,
     "max_tokens": 256,
-    "seed": 42
+    "seed": 42,
+    "threads": 1
 }
 
 def load_questions():
@@ -140,7 +141,8 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
             "--temperature", str(INFERENCE_PARAMS["temperature"]),
             "--top-p", str(INFERENCE_PARAMS["top_p"]),
             "--seed", str(INFERENCE_PARAMS["seed"]),
-            "--num-predict", str(INFERENCE_PARAMS["max_tokens"])
+            "--num-predict", str(INFERENCE_PARAMS["max_tokens"]),
+            "--threads", str(INFERENCE_PARAMS["threads"])
         ]
         try:
             proc = subprocess.Popen(

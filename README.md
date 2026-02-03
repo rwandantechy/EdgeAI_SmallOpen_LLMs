@@ -47,6 +47,13 @@ EdgeAI_SmallOpen_LLMs/
    python plot_benchmark_scores.py
    ```
 
+### Fully reproducible run helper
+- Use the helper script to automate cold-cache preparation and run a benchmark in one step:
+   ```sh
+   ./scripts/full_repro_benchmark.sh --model llama3.2:1b --runs 3 --output llama_runs.log
+   ```
+   This stops Ollama, clears cached models/blobs, enforces single-thread inference, reminds you to close heavy background apps, and then calls `benchmark_runner.py`.
+
 ## Requirements
 - Python 3.8+
 - Ollama installed and models pulled (see https://ollama.com/)
