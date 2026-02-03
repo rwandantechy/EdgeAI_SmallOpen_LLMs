@@ -52,7 +52,9 @@ EdgeAI_SmallOpen_LLMs/
    ```sh
    ./scripts/full_repro_benchmark.sh --model llama3.2:1b --runs 3 --output llama_runs.log
    ```
-   This stops Ollama, clears cached models/blobs, enforces single-thread inference, reminds you to close heavy background apps, and then calls `benchmark_runner.py`.
+   This stops Ollama, clears cached models/blobs, enforces single-thread inference, reminds you to close heavy background apps, and then calls `benchmark_runner.py`. It works on macOS and Raspberry Pi OS (Debian-based) provided Ollama and Python dependencies are installed.
+
+Each `run_XX.json` embeds safe host metadata (platform, release, machine type, processor ID string, Python version, Ollama version, CPU/RAM capacity) so reviewers can cross-check results across different edge devices without exposing sensitive information.
 
 ## Requirements
 - Python 3.8+

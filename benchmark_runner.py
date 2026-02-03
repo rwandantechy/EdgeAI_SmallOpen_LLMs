@@ -48,14 +48,29 @@ def restart_ollama():
     subprocess.run(["ollama", "serve", "--restart"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2)  # Give time for restart
 
+def get_ollama_version() -> str:
+    try:
+        proc = subprocess.run(["ollama", "--version"], capture_output=True, check=False, text=True, timeout=5)
+        output = proc.stdout.strip() or proc.stderr.strip()
+        return output if output else "unknown"
+    except Exception:
+        return "unavailable"
+
+
 def get_system_metadata():
+    cpu_freq = psutil.cpu_freq()
     return {
         "platform": platform.system(),
         "platform_release": platform.release(),
+        "platform_version": platform.version(),
+        "machine": platform.machine(),
+        "processor": platform.processor(),
+        "python_version": platform.python_version(),
+        "ollama_version": get_ollama_version(),
         "cpu_count": psutil.cpu_count(logical=True),
         "cpu_physical": psutil.cpu_count(logical=False),
         "ram_gb": round(psutil.virtual_memory().total / (1024 ** 3), 2),
-        "cpu_freq_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else None,
+        "cpu_freq_mhz": cpu_freq.current if cpu_freq else None,
         "cpu_percent": psutil.cpu_percent(interval=1),
         "threading_info": {
             "num_threads": len(psutil.Process().threads())

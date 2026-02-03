@@ -99,10 +99,17 @@ printf '%s\n' "$ps_output"
 echo
 echo "Reminder: manually close heavy background apps (Docker, browsers, etc.) for cleaner measurements."
 echo
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python)}"
-if [[ -z "$PYTHON_BIN" ]]; then
-  echo "Error: python executable not found." >&2
-  exit 1
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  PYTHON_BIN="$PYTHON_BIN"
+else
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python3)"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="$(command -v python)"
+  else
+    echo "Error: python3 or python executable not found." >&2
+    exit 1
+  fi
 fi
 
 CMD=("$PYTHON_BIN" benchmark_runner.py --model "$MODEL" --runs "$RUNS")
