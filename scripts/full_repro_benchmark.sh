@@ -57,6 +57,11 @@ if ! [[ "$RUNS" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+if (( RUNS < 1 )); then
+  echo "Error: --runs must be at least 1." >&2
+  exit 1
+fi
+
 if ! command -v ollama >/dev/null 2>&1; then
   echo "Error: ollama command not found. Install Ollama first." >&2
   exit 1
@@ -87,12 +92,12 @@ export OLLAMA_NUM_PARALLEL=1
 echo "OLLAMA_NUM_PARALLEL set to $OLLAMA_NUM_PARALLEL"
 
 echo "Active user processes (non-system) for review:"
-ps -u "$(whoami)" -o pid,%cpu,%mem,comm | grep -vE '^ *PID|/System/Library|/usr/libexec|/usr/sbin'
+' "$ps_output"
+ps_output=$(ps -u "$(whoami)" -o pid,%cpu,%mem,comm | awk 'NR==1 || ($4 !~ /^\/System\/Library/ && $4 !~ /^\/usr\/libexec/ && $4 !~ /^\/usr\/sbin/)' )
+printf '%s\n' "$ps_output"
 
 echo
 echo "Reminder: manually close heavy background apps (Docker, browsers, etc.) for cleaner measurements."
-echo
-
 echo
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python)}"
 if [[ -z "$PYTHON_BIN" ]]; then
