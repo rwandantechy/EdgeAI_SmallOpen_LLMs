@@ -1,4 +1,5 @@
 
+
 import os
 import json
 import subprocess
@@ -6,6 +7,8 @@ import time
 from datetime import datetime
 import platform
 import psutil
+import argparse
+import threading
 
 # Constants
 BENCHMARK_DATA = "benchmark_data/questions.json"
@@ -27,11 +30,12 @@ def load_questions():
     with open(BENCHMARK_DATA, "r") as f:
         return json.load(f)
 
+
 def prepare_output_dir(model_name: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = os.path.join(RESULTS_DIR, model_name)
     os.makedirs(out_dir, exist_ok=True)
-    return os.path.join(out_dir, f"{timestamp}.json")
+    return out_dir, timestamp
 
 def clean_ollama_blobs():
     subprocess.run(["ollama", "rm", "--all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -89,8 +93,23 @@ def score_response(q, response):
             return q["scoring"]["incorrect"], "incorrect"
     return 0, "ungraded"
 
-def run_model(model: str, questions: list, output_path: str):
-    # Clean blobs and restart Ollama for determinism
+
+def monitor_resources(proc, stats):
+    p = psutil.Process(proc.pid)
+    peak_mem = 0
+    cpu_samples = []
+    while proc.poll() is None:
+        try:
+            mem = p.memory_info().rss / (1024 ** 2)  # MB
+            peak_mem = max(peak_mem, mem)
+            cpu = p.cpu_percent(interval=0.1)
+            cpu_samples.append(cpu)
+        except Exception:
+            break
+    stats["peak_ram_mb"] = peak_mem
+    stats["avg_cpu_percent"] = sum(cpu_samples) / len(cpu_samples) if cpu_samples else 0
+
+def run_model(model: str, questions: list, out_dir: str, timestamp: str, run_idx: int = 1):
     clean_ollama_blobs()
     restart_ollama()
     os.environ["OLLAMA_NUM_PARALLEL"] = "1"
@@ -98,16 +117,18 @@ def run_model(model: str, questions: list, output_path: str):
     results = {
         "model": model,
         "timestamp": datetime.now().isoformat(),
+        "run_index": run_idx,
         "system_metadata": get_system_metadata(),
         "inference_params": INFERENCE_PARAMS,
         "responses": [],
         "scores": [],
-        "total_score": 0
+        "total_score": 0,
+        "resource_usage": {}
     }
 
+    start_time = time.time()
     for q in questions:
         prompt = q["question"]
-        # Run Ollama model with fixed params
         ollama_cmd = [
             "ollama", "run", model,
             "--temperature", str(INFERENCE_PARAMS["temperature"]),
@@ -116,35 +137,52 @@ def run_model(model: str, questions: list, output_path: str):
             "--num-predict", str(INFERENCE_PARAMS["max_tokens"])
         ]
         try:
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 ollama_cmd,
-                input=prompt.encode(),
-                capture_output=True,
-                timeout=120
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
-            response = proc.stdout.decode(errors="replace").strip()
+            stats = {}
+            monitor_thread = threading.Thread(target=monitor_resources, args=(proc, stats))
+            monitor_thread.start()
+            out, _ = proc.communicate(input=prompt.encode(), timeout=120)
+            monitor_thread.join()
+            response = out.decode(errors="replace").strip()
         except Exception as e:
             response = f"ERROR: {e}"
+            stats = {"peak_ram_mb": None, "avg_cpu_percent": None}
         score, reason = score_response(q, response)
         results["responses"].append({
             "category": q["category"],
             "question": prompt,
             "response": response,
             "score": score,
-            "score_reason": reason
+            "score_reason": reason,
+            "resource_usage": stats
         })
         results["scores"].append(score)
     results["total_score"] = sum(results["scores"])
+    results["resource_usage"]["wall_time_sec"] = round(time.time() - start_time, 2)
 
-    with open(output_path, "w") as f:
+    out_path = os.path.join(out_dir, f"{timestamp}_run{run_idx}.json")
+    with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
-    print(f"Saved results for {model} to {output_path}")
+    print(f"Saved results for {model} run {run_idx} to {out_path}")
+
 
 def main():
+    parser = argparse.ArgumentParser(description="Benchmark LLMs on edge devices.")
+    parser.add_argument("--model", type=str, default=None, help="Model to run (default: all)")
+    parser.add_argument("--runs", type=int, default=1, help="Number of repeated runs")
+    args = parser.parse_args()
+
     questions = load_questions()["questions"]
-    for model in OLLAMA_MODELS:
-        output_path = prepare_output_dir(model)
-        run_model(model, questions, output_path)
+    models = [args.model] if args.model else OLLAMA_MODELS
+    for model in models:
+        out_dir, timestamp = prepare_output_dir(model)
+        for run_idx in range(1, args.runs + 1):
+            run_model(model, questions, out_dir, timestamp, run_idx)
 
 if __name__ == "__main__":
     main()
