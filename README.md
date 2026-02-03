@@ -10,6 +10,12 @@ This project is a friendly, reproducible home for testing small open-source LLMs
 - Auto-grading with clear scoring plus light-weight system metadata for context
 - Export and plotting scripts so you can move smoothly from raw JSON to spreadsheets or visuals
 
+### Model snapshots
+- deepseek-r1:1.5b — 1.5B-parameter reasoning model tuned for concise step-by-step answers on modest hardware.
+- llama3.2:1b — Meta’s 1B-parameter general model optimized for low-latency edge inference with balanced quality.
+- gemma2:2b — Google’s 2B successor to Gemma with stronger multilingual coverage and stable generation at small scale.
+- phi3:3.8b — Microsoft’s 3.8B compact transformer focused on code and reasoning tasks while staying edge-friendly.
+
 ## Folder Structure
 ```
 EdgeAI_SmallOpen_LLMs/
