@@ -7,7 +7,6 @@ import argparse
 import os
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Iterable, Optional
 import shutil
@@ -25,40 +24,6 @@ def run_command(command: Iterable[str], *, check: bool = False, capture_output: 
         text=text,
         timeout=timeout,
     )
-
-
-def stop_ollama() -> None:
-    """Stop any existing Ollama server; ignore failures."""
-    pkill = shutil.which("pkill")
-    if pkill:
-        print("Stopping any running Ollama server...")
-        run_command([pkill, "-f", "ollama serve"], check=False, capture_output=True)
-    else:
-        print("pkill not available; ensure Ollama server is stopped manually if running.")
-
-
-def start_ollama() -> None:
-    """Start Ollama server if available."""
-    ollama_bin = shutil.which("ollama")
-    if not ollama_bin:
-        print("Warning: ollama binary not found on PATH; ensure Ollama is installed.")
-        return
-    # ollama serve --start is idempotent and inexpensive
-    run_command([ollama_bin, "serve", "--start"], check=False, capture_output=True)
-
-
-def wait_for_ollama_ready(timeout: int = 45, poll_interval: float = 1.5) -> None:
-    """Poll until Ollama responds to a lightweight command or timeout occurs."""
-    start_time = time.monotonic()
-    ollama_bin = shutil.which("ollama")
-    if not ollama_bin:
-        return
-    while time.monotonic() - start_time < timeout:
-        check = run_command([ollama_bin, "ps"], capture_output=True)
-        if check.returncode == 0:
-            return
-        time.sleep(poll_interval)
-    print("Warning: Ollama did not signal readiness; continuing anyway. You may need to rerun if the server is still starting up.")
 
 
 def clear_cache() -> None:
@@ -153,17 +118,12 @@ def main() -> None:
     os.environ["OLLAMA_NUM_PARALLEL"] = "1"
     print(f"OLLAMA_NUM_PARALLEL set to {os.environ['OLLAMA_NUM_PARALLEL']}")
 
-    stop_ollama()
     if args.purge_results:
         purge_previous_results(args.model)
     if not args.no_cache_clear:
         clear_cache()
     else:
         print("Skipping cache clear as requested; results may be non-reproducible.")
-
-    print("Bringing Ollama back online...")
-    start_ollama()
-    wait_for_ollama_ready()
 
     run_benchmark(args.model, python_bin, args.output)
     print(f"Benchmark completed for {args.model}. Results stored under results/{args.model}/<timestamp>/")

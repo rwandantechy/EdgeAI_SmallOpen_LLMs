@@ -10,6 +10,7 @@ import psutil
 import argparse
 import threading
 import shutil
+import re
 from typing import Tuple
 
 # Constants
@@ -64,21 +65,35 @@ def restart_ollama():
 def get_ollama_version() -> str:
     try:
         proc = subprocess.run(["ollama", "--version"], capture_output=True, check=False, text=True, timeout=5)
-        output = proc.stdout.strip() or proc.stderr.strip()
-        return output if output else "unknown"
+        raw_output = (proc.stdout or proc.stderr).strip()
+        if not raw_output:
+            return "unknown"
+        last_line = raw_output.splitlines()[-1]
+        match = re.search(r"\d+\.\d+\.\d+", last_line)
+        if match:
+            return match.group(0)
+        tokens = last_line.split()
+        for token in tokens:
+            if any(ch.isdigit() for ch in token):
+                return token
+        return "unknown"
     except Exception:
         return "unavailable"
 
 
 def get_system_metadata():
     cpu_freq = psutil.cpu_freq()
+    release = platform.release() or None
+    release_major = release.split(".")[0] if release and "." in release else release
+    python_version = platform.python_version() or None
+    python_major_minor = ".".join(python_version.split(".")[:2]) if python_version else None
     return {
         "platform": platform.system(),
-        "platform_release": platform.release(),
-        "platform_version": platform.version(),
-        "machine": platform.machine(),
-        "processor": platform.processor(),
-        "python_version": platform.python_version(),
+        "platform_release": release_major,
+        "platform_version": None,
+        "machine": platform.machine() or None,
+        "processor": None,
+        "python_version": python_major_minor,
         "ollama_version": get_ollama_version(),
         "cpu_count": psutil.cpu_count(logical=True),
         "cpu_physical": psutil.cpu_count(logical=False),
@@ -89,6 +104,19 @@ def get_system_metadata():
             "num_threads": len(psutil.Process().threads())
         }
     }
+
+
+def build_ollama_options(params):
+    options = []
+    option_map = {
+        "temperature": f"temperature={params['temperature']}",
+        "top_p": f"top_p={params['top_p']}",
+        "seed": f"seed={params['seed']}",
+        "num_predict": f"num_predict={params['max_tokens']}"
+    }
+    for value in option_map.values():
+        options.extend(["--options", str(value)])
+    return options
 
 
 def score_response(q, response):
@@ -164,14 +192,8 @@ def run_model(model: str, questions: list, timestamp_dir: str, timestamp: str, r
     run_cpu_samples = []
     for q in questions:
         prompt = q["question"]
-        ollama_cmd = [
-            "ollama", "run", model,
-            "--temperature", str(INFERENCE_PARAMS["temperature"]),
-            "--top-p", str(INFERENCE_PARAMS["top_p"]),
-            "--seed", str(INFERENCE_PARAMS["seed"]),
-            "--num-predict", str(INFERENCE_PARAMS["max_tokens"]),
-            "--threads", str(INFERENCE_PARAMS["threads"])
-        ]
+        ollama_cmd = ["ollama", "run", model]
+        ollama_cmd.extend(build_ollama_options(INFERENCE_PARAMS))
         try:
             proc = subprocess.Popen(
                 ollama_cmd,

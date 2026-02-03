@@ -7,7 +7,7 @@ This project is a friendly, reproducible home for testing small open-source LLMs
 - Deterministic inference settings baked in (temperature=0, top_p=1.0, max_tokens=256, fixed seed)
 - Automatic cache clears and Ollama restarts so tests start fresh
 - Single-thread runs to keep CPU usage consistent across devices
-- Auto-grading with clear scoring plus light-weight system metadata for context
+- Auto-grading with clear scoring plus sanitized system metadata for context
 - Export and plotting scripts so you can move smoothly from raw JSON to spreadsheets or visuals
 
 ### Model snapshots
@@ -60,7 +60,7 @@ EdgeAI_SmallOpen_LLMs/
   ```sh
    python scripts/full_repro_benchmark.py --model llama3.2:1b --output run.log
   ```
-   Stops Ollama, clears caches, enforces single-thread inference, and writes outputs to the same results folder. After a cache purge, Ollama re-downloads weights on the next run, so leave the helper running until it prints the stored-results message.
+   Clears Ollama caches, enforces single-thread inference, and writes outputs to the same results folder. After a cache purge, Ollama re-downloads weights the next time it serves a prompt, so make sure the Ollama app/server stays running while the helper executes.
 - Fresh slate before a rerun:
   ```sh
   python benchmark_runner.py --model llama3.2:1b --purge-results
@@ -72,10 +72,10 @@ EdgeAI_SmallOpen_LLMs/
    ```sh
    python scripts/full_repro_benchmark.py --model llama3.2:1b --output llama_runs.log
    ```
-   The script stops Ollama, clears cached weights, enforces single-thread inference, and then runs `benchmark_runner.py` for you. Prefer to keep the cache? Pass `--no-cache-clear`. Want a clean slate for that model’s outputs? Add `--purge-results` to clear `results/<model>` before the run, or delete the folder manually afterward. Re-run the helper whenever you need another pass. The helper works the same on macOS and Raspberry Pi OS as long as Ollama and Python are installed.
+   The script clears cached weights, enforces single-thread inference, and then runs `benchmark_runner.py` for you while leaving the Ollama daemon untouched. Prefer to keep the cache? Pass `--no-cache-clear`. Want a clean slate for that model’s outputs? Add `--purge-results` to clear `results/<model>` before the run, or delete the folder manually afterward. Re-run the helper whenever you need another pass. The helper works the same on macOS and Raspberry Pi OS as long as Ollama and Python are installed and already running.
    Each invocation writes outputs to `results/<model>/<timestamp>/run_<index>.json` and streams a copy of stdout to the optional log file so you can revisit the transcript later. If the log shows an `ERROR:` message (for example, missing model or offline download), rerun after resolving it.
 
-Every `run_<index>.json` includes a short snapshot of the host (OS, machine type, processor string, Python version, Ollama version, CPU and RAM capacity) so collaborators can see where the run happened without revealing anything sensitive.
+Every `run_<index>.json` includes a short snapshot of the host (OS, machine type, major OS/Python versions, Ollama version, CPU and RAM capacity) so collaborators can see where the run happened without revealing anything sensitive.
 
 ## Requirements
 - Python 3.8+
